@@ -11,8 +11,6 @@ import android.media.MediaFormat;
 import android.util.Log;
 import android.view.Surface;
 
-import com.example.vcam.HookMain;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -23,7 +21,7 @@ import de.robv.android.xposed.XposedBridge;
 //以下代码修改自 https://github.com/zhantong/Android-VideoToImages
 public class VideoToFrames implements Runnable {
     private static final String TAG = "VideoToFrames";
-    private static final boolean VERBOSE = false;
+    private static final boolean VERBOSE = true;
     private static final long DEFAULT_TIMEOUT_US = 10000;
 
     private static final int COLOR_FormatI420 = 1;
@@ -42,6 +40,7 @@ public class VideoToFrames implements Runnable {
     private Surface play_surf;
 
     private Callback callback;
+    private long mSpecificSleepTime;
 
     public interface Callback {
         void onFinishDecode();
@@ -124,8 +123,8 @@ public class VideoToFrames implements Runnable {
                 decodeFramesToImage(decoder, extractor, mediaFormat);
                 decoder.stop();
             }
-        }catch (Exception e){
-            XposedBridge.log("【VCAM】[videofile]"+ e.toString());
+        } catch (Exception e) {
+            XposedBridge.log("【VCAM】[videofile]" + e.toString());
         } finally {
             if (decoder != null) {
                 decoder.stop();
@@ -216,6 +215,9 @@ public class VideoToFrames implements Runnable {
                         image.close();
                     }
                     long sleepTime = info.presentationTimeUs / 1000 - (System.currentTimeMillis() - startWhen);
+                    if (mSpecificSleepTime > 0) {
+                        sleepTime = mSpecificSleepTime;
+                    }
                     if (sleepTime > 0) {
                         try {
                             Thread.sleep(sleepTime);
@@ -305,11 +307,8 @@ public class VideoToFrames implements Runnable {
             int rowStride = planes[i].getRowStride();
             int pixelStride = planes[i].getPixelStride();
             if (VERBOSE) {
-                Log.v(TAG, "pixelStride " + pixelStride);
-                Log.v(TAG, "rowStride " + rowStride);
-                Log.v(TAG, "width " + width);
-                Log.v(TAG, "height " + height);
-                Log.v(TAG, "buffer size " + buffer.remaining());
+                Log.v(TAG, String.format("pixelStride %d, rowStride %d, width %d, height %d, bufferSize %d",
+                        pixelStride, rowStride, width, height, buffer.remaining()));
             }
             int shift = (i == 0) ? 0 : 1;
             int w = width >> shift;
@@ -338,7 +337,13 @@ public class VideoToFrames implements Runnable {
         return data;
     }
 
+    public long getSpecificSleepTime() {
+        return mSpecificSleepTime;
+    }
 
+    public void setSpecificSleepTime(long specificSleepTime) {
+        this.mSpecificSleepTime = specificSleepTime;
+    }
 }
 
 enum OutputImageFormat {
