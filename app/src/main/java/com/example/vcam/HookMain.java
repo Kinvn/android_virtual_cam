@@ -1149,11 +1149,11 @@ public class HookMain implements IXposedHookLoadPackage {
                             XposedBridge.log("【VCAM】[toast]" + ee.toString());
                         }
                     }
+                    if (mVideoToFrames != null) {
+                        mVideoToFrames.stopDecode();
+                        mVideoToFrames = null;
+                    }
                     if (finalDisableReplace) {
-                        if (mVideoToFrames != null) {
-                            mVideoToFrames.stopDecode();
-                            mVideoToFrames = null;
-                        }
                         return;
                     }
                     mVideoToFrames = new VideoToFrames();
@@ -1162,10 +1162,20 @@ public class HookMain implements IXposedHookLoadPackage {
                     }
                     mVideoToFrames.setSaveFrames("", OutputImageFormat.NV21);
                     String path = video_path + "virtual.mp4";
-                    File specificVideoFile = new File(video_path + String.format(
-                            Locale.UK, "virtual_%dx%d.mp4", mwidth, mheight));
-                    if (specificVideoFile.exists()) {
-                        path = specificVideoFile.getAbsolutePath();
+                    File dir = new File(video_path);
+                    List<File> specificVideoFiles = new ArrayList<>();
+                    if (dir.isDirectory()) {
+                        File[] files = dir.listFiles();
+                        String contains = String.format("virtual_%dx%d", mwidth, mheight);
+                        for (File childFile : files) {
+                            if (childFile.isFile() && childFile.getName().contains(contains)) {
+                                specificVideoFiles.add(childFile);
+                            }
+                        }
+                    }
+                    if (specificVideoFiles.size() > 0) {
+                        path = specificVideoFiles.get((int) (System.currentTimeMillis()
+                                % specificVideoFiles.size())).getAbsolutePath();
                         Log.d("harper", "found specific video. " + path);
                     } else {
                         Log.d("harper", "found specific video failed. " + path);
